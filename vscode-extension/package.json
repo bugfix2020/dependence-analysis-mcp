@@ -1,0 +1,57 @@
+{
+  "name": "dependence-analysis-mcp-vscode",
+  "displayName": "Dependence Analysis MCP",
+  "description": "Run /runDependenceAnalysis to call the dependence-analysis-mcp MCP server and write report to .hc/reports.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:dependenceAnalysis.runDependenceAnalysis"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "dependenceAnalysis.runDependenceAnalysis",
+        "title": "/runDependenceAnalysis"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "dependence-analysis-mcp.participant",
+        "name": "dependence",
+        "fullName": "Dependence Analysis",
+        "description": "Scan JS/TS import graph and write a report to .hc/reports",
+        "isSticky": false,
+        "commands": [
+          {
+            "name": "runDependenceAnalysis",
+            "description": "Scan a directory and write report to .hc/reports/yyyy/mm/dd/time.md"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "package": "vsce package",
+    "lint": "echo \"(todo)\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.24.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

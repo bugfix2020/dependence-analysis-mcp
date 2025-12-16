@@ -1,0 +1,10 @@
+# Control files included in sdist (wheel is controlled by hatch packages config)
+include README.md
+include pyproject.toml
+recursive-include src/dependence_analysis_mcp *.py
+
+# Keep sdist small
+prune tests
+prune .github
+prune dist
+prune build
