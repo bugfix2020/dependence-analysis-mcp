@@ -4,20 +4,25 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dependence-analysis-mcp"
-version = "0.1.0"
+version = "0.1.2"
 description = "MCP server for scanning JS/TS import dependencies and finding unused files"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "dependence-analysis-mcp" }]
-keywords = ["mcp", "fastapi", "dependency", "typescript", "react", "vue", "angular"]
+authors = [{ name = "bugfix2020" }]
+keywords = ["mcp", "modelscope", "dependency-analysis", "typescript", "react", "vue", "unused-imports", "dead-code"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
-  "fastapi>=0.110",
   "pydantic>=2.6",
+  "starlette>=0.37",
   "uvicorn>=0.27",
   "mcp>=1.24.0",
   "pathspec>=0.12.1",
@@ -35,10 +40,13 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [project.urls]
-Homepage = "https://fastapi.tiangolo.com/"
+Homepage = "https://github.com/bugfix2020/dependence-analysis-mcp"
+Repository = "https://github.com/bugfix2020/dependence-analysis-mcp.git"
+Documentation = "https://github.com/bugfix2020/dependence-analysis-mcp#readme"
 
 [project.scripts]
 dependence-analysis-mcp = "dependence_analysis_mcp.server:main"
+dependence-analysis = "dependence_analysis_mcp.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dependence_analysis_mcp"]

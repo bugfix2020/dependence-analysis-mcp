@@ -58,7 +58,9 @@ _VITE_ALIAS_OBJ_RE = re.compile(
     r"alias\s*:\s*\{(?P<body>[^\}]+)\}", re.DOTALL
 )
 _VITE_ALIAS_PAIR_RE = re.compile(
-    r"['\"](?P<k>[^'\"]+)['\"]\s*:\s*(?P<v>[^,\n]+)", re.DOTALL
+    # Value may contain commas (e.g. path.resolve(__dirname, './src')), so capture until line end.
+    r"['\"](?P<k>[^'\"]+)['\"]\s*:\s*(?P<v>[^\n]+)",
+    re.DOTALL,
 )
 _VITE_ALIAS_ARRAY_RE = re.compile(
     r"alias\s*:\s*\[(?P<body>[\s\S]+?)\]",
@@ -96,7 +98,7 @@ def load_vite_aliases(project_root: Path) -> tuple[list[AliasRule], list[str]]:
         body = m.group("body")
         for pm in _VITE_ALIAS_PAIR_RE.finditer(body):
             k = pm.group("k")
-            v = pm.group("v").strip()
+            v = pm.group("v").strip().rstrip(",").strip()
             repl = _eval_vite_replacement(v, project_root, warnings)
             if repl:
                 rules.append(AliasRule(find=k, replacement=repl))

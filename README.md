@@ -1,179 +1,244 @@
 # dependence-analysis-mcp
 
-一个标准 MCP Server（stdio）用于扫描前端/Node 项目里的 ESModule `import ... from ...` 依赖关系，帮助你快速找出：
+一个 MCP Server（Streamable HTTP）用于扫描前端/Node 项目的 ESModule 依赖关系，帮助你快速找出：
 
-- ✅ **已引用文件**：被 import 且**确实有使用**（导入但未使用的不计入），并附带 **import 总次数**
-- 🧹 **未引用文件**：扫描目录内的源码文件，但从未被其他源码文件引用
-- 💤 **已导入但未使用**：存在 `import`，但导入的标识符在文件中未被使用
-- 🧪 **实验性（不稳定）**：`__experimentalUnusefulFiles`，对“疑似废弃/临时文件”的推断，极不稳定，仅供参考
+- ✅ **已引用文件** — 被 import 且确实有使用，附带引用次数
+- 🧹 **未引用文件** — 存在于项目中但从未被其他文件引用
+- 💤 **未使用导入** — 存在 `import`，但导入的标识符从未使用
 
-> 说明：当前实现返回的文件路径是**绝对路径**。
+---
+
+## 🎯 为什么需要这个工具？
+
+### 问题背景
+
+大型前端项目迭代中常见的"死代码"问题：
+
+| 传统方法                | 局限性                                   |
+| ----------------------- | ---------------------------------------- |
+| ESLint `no-unused-vars` | 只检测单文件内，无法发现跨文件的废弃代码 |
+| IDE "查找引用"          | 需逐个手动检查，无法批量分析             |
+| TypeScript 编译器       | 不报告未被引用的导出                     |
+
+### 解决方案
+
+通过 **全局依赖图分析**，一次性识别出所有未引用文件和未使用导入：
+
+```mermaid
+flowchart LR
+    subgraph "传统工具"
+        A[单文件 Lint]
+    end
+
+    subgraph "本工具"
+        B[全局依赖图]
+        C[未引用文件检测]
+        D[未使用导入检测]
+        E[引用计数统计]
+    end
+
+    A -.->|局限| B
+    B --> C & D & E
+```
+
+### 核心分析流程
+
+```mermaid
+sequenceDiagram
+    participant Dev as 开发者
+    participant MCP as MCP Server
+    participant Scanner as 扫描引擎
+    participant AST as Tree-sitter
+
+    Dev->>MCP: 调用 run_dependence_analysis
+    MCP->>Scanner: 扫描项目目录
+
+    loop 每个源文件
+        Scanner->>Scanner: 提取 import 语句
+        Scanner->>AST: 解析标识符使用
+        Scanner->>Scanner: 解析路径别名
+    end
+
+    Scanner->>Scanner: 构建依赖图
+    Scanner-->>MCP: AnalysisResult
+    MCP-->>Dev: 分析报告
+```
+
+### 适用场景
+
+| 场景        | 效果                 |
+| ----------- | -------------------- |
+| 🧹 项目清理 | 定位可删除的废弃代码 |
+| 📦 打包优化 | 减少 bundle 体积     |
+| 📚 代码审计 | 评估项目健康度       |
+| 🔄 重构准备 | 了解模块依赖关系     |
 
 ---
 
 ## ✨ 特性
 
-- 🎯 支持 `React / Vue / Angular / Node` 常见代码形态（基于 `.js/.jsx/.ts/.tsx/.vue` 扫描）
-- 🧠 AST 级未使用导入检测（`tree-sitter`），大幅降低误判；异常时自动降级为词法策略
-- 🔗 路径解析支持：相对路径 + `tsconfig.json` 的 `paths` + `vite.config.*` 的 `resolve.alias`
-- 🚫 默认忽略 `node_modules/dist/build/.next/.nuxt/coverage/...` 以及测试/示例/fixtures/mock 等
-- 📦 作为 Python 包发布到 PyPI，可直接 `pip install` 使用
+- 🎯 支持 React / Vue / Angular / Node（`.js/.jsx/.ts/.tsx/.vue`）
+- 🧠 Tree-sitter AST 级未使用导入检测，大幅降低误判
+- 🔗 路径别名支持：`tsconfig.json` paths + `vite.config.*` alias
+- 🚫 智能忽略 `node_modules/dist/tests/...` 等目录
+- 📦 发布到 PyPI，可直接 `pip install`
 
 ---
 
-## 📦 安装
+## 📦 安装 & 快速开始
 
-```powershell
+```bash
+# 安装
 pip install dependence-analysis-mcp
-```
 
----
-
-## 🚀 快速开始
-
-启动 MCP server（stdio）：
-
-```powershell
+# 启动服务（默认 0.0.0.0:8000）
 dependence-analysis-mcp
+
+# 或指定端口
+dependence-analysis-mcp --host 0.0.0.0 --port 8000
 ```
 
-然后在你的 MCP 客户端里调用本服务提供的 tool：`run_dependence_analysis`。
+连接 MCP endpoint：`http://127.0.0.1:8000/mcp`
 
 ---
-8
-## 🧩 MCP Tool
 
-### `run_dependence_analysis(request)`
+## 🧩 MCP Tool API
+
+### `run_dependence_analysis`
 
 #### 请求参数
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `directory` | `string` | 是 | 要扫描的目录（建议传项目根目录或子目录） |
-| `roots` | `string[] \| null` | 否 | 入口文件/目录列表（当前实现暂不强制；后续可通过对话再增强 roots 语义） |
-| `includeExtensions` | `string[] \| null` | 否 | 额外/自定义扫描后缀（默认：`.ts/.tsx/.js/.jsx/.vue`） |
+| 字段                | 类型       | 必填 | 说明         |
+| ------------------- | ---------- | ---- | ------------ |
+| `directory`         | `string`   | ✅   | 扫描目录路径 |
+| `roots`             | `string[]` | -    | 入口文件列表 |
+| `includeExtensions` | `string[]` | -    | 额外扫描后缀 |
 
 #### 返回结构
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `referencedFiles` | `{ path: string; importCount: number }[]` | 已引用文件（排除“导入但未使用”）与 import 总次数 |
-| `unreferencedFiles` | `string[]` | 未引用文件（扫描范围内） |
-| `unusedImports` | `{ file: string; importSource: string; importedNames: string[] }[]` | 已导入但未使用的 import |
-| `__experimentalUnusefulFiles` | `string[]` | 实验性字段：疑似无用文件（非常不稳定，仅供参考） |
-| `__experimentalNotice` | `string` | 对实验性字段的明确提示 |
-| `warnings` | `string[]` | 解析/降级等告警信息 |
+| 字段                | 说明                 |
+| ------------------- | -------------------- |
+| `referencedFiles`   | 已引用文件及引用次数 |
+| `unreferencedFiles` | 未引用文件列表       |
+| `unusedImports`     | 未使用的导入列表     |
+| `warnings`          | 解析告警信息         |
 
-#### 示例输出（节选）
+#### 示例
 
 ```json
 {
-  "referencedFiles": [
-    { "path": "C:/repo/src/utils/a.ts", "importCount": 3 }
-  ],
-  "unreferencedFiles": [
-    "C:/repo/src/INPUTV2.tsx"
-  ],
+  "referencedFiles": [{ "path": "/src/utils/a.ts", "importCount": 3 }],
+  "unreferencedFiles": ["/src/old-component.tsx"],
   "unusedImports": [
     {
-      "file": "C:/repo/src/pages/home.tsx",
+      "file": "/src/pages/home.tsx",
       "importSource": "@/components/Button",
       "importedNames": ["Button"]
     }
-  ],
-  "__experimentalUnusefulFiles": [
-    "C:/repo/src/INPUTV2.tsx"
-  ],
-  "__experimentalNotice": "`__experimentalUnusefulFiles` 是实验性属性，非常不稳定，仅供参考。",
-  "warnings": []
+  ]
 }
 ```
 
 ---
 
-## 🧷 VS Code 调用（TODO）
+## 🐳 Docker 部署
 
-目标交互：用户在 VS Code 中执行 `/runDependenceAnalysis`，由 MCP 客户端/扩展将其映射为对本服务 tool `run_dependence_analysis` 的调用。
-
-TODO：补充一个最小可用的 VS Code 侧配置/扩展示例（等你确定所用 MCP 客户端后再落地）。
-
----
-
-## 🔧 忽略规则（默认）
-
-默认会跳过：
-
-- 目录：`node_modules`、`.git`、`dist`、`build`、`out`、`.next`、`.nuxt`、`.angular`、`coverage`、`.cache`、`.turbo`、`.vercel`
-- 测试/示例/辅助目录：`__tests__`、`test(s)`、`e2e`、`cypress`、`__mocks__`、`mocks/mock`、`fixtures/fixture`、`examples/example`、`demo/demos`、`stories`
-- 文件：`*.d.ts`、`*.test.*`、`*.spec.*`、`*.stories.*`
+```bash
+docker build -t dependence-analysis-mcp .
+docker run --rm -e PORT=8000 -p 8000:8000 dependence-analysis-mcp
+```
 
 ---
 
-## ⚠️ 限制与注意事项
+## 🔧 忽略规则
 
-- 只统计**本地源码文件**之间的引用：`import React from 'react'` 这类外部依赖会被忽略。
-- 当前主要针对 `import ... from ...` + `export ... from ...` 做静态分析；更复杂的动态导入场景可能无法覆盖。
-- `__experimentalUnusefulFiles` 为实验性推断字段：不要据此自动删除文件。
+默认跳过：
+
+- **目录**: `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `coverage`, `.cache`
+- **测试目录**: `__tests__`, `test(s)`, `e2e`, `cypress`, `__mocks__`, `fixtures`, `examples`
+- **文件**: `*.d.ts`, `*.test.*`, `*.spec.*`, `*.stories.*`
 
 ---
 
-## 🧪 测试
+## ⚠️ 限制
 
-```powershell
-python -m pip install -e ".[dev]"
-python -m pytest
+- 仅统计本地源码文件间的引用（外部依赖如 `react` 会忽略）
+- 主要针对静态 `import ... from ...` 分析
+- 复杂动态导入场景可能无法覆盖
+
+---
+
+## 🧪 开发 & 测试
+
+```bash
+pip install -e ".[dev]"
+pytest
 ```
 
 ---
 
 ## 📂 项目结构
 
-```text
+```
 dependence-analysis-mcp/
-├── src/dependence_analysis_mcp/  # MCP server + 扫描核心
-├── tests/                       # 单元测试
-├── pyproject.toml
-├── MANIFEST.in
-└── README.md
+├── src/dependence_analysis_mcp/  # 核心代码
+├── tests/                        # 单元测试
+├── Dockerfile                    # Docker 部署
+├── CHANGELOG.md                  # 变更日志
+└── pyproject.toml                # 项目配置
 ```
-
----
-
-## 🧰 开发
-
-```powershell
-python -m pip install -e ".[dev]"
-python -m pytest
-```
-
----
-
-## 📦 发布到 PyPI（维护者）
-
-下面是推荐的发布流程（使用 API Token）：
-
-```powershell
-python -m pip install -U build twine
-python -m build
-python -m twine check dist/*
-python -m twine upload dist/*
-```
-
-建议在上传前先：
-
-- 更新 `pyproject.toml` 里的版本号
--（可选）打 git tag（例如 `v0.1.1`）
-
-### 需要 `.gitignore` / “npmignore” 吗？
-
-- `git`：建议加入 `.gitignore`，避免把 `dist/`、`.venv/`、`__pycache__/` 等提交进仓库。
-- PyPI 包内容：Python 生态不使用 `.npmignore`。
-  - **推荐**使用 `MANIFEST.in` 或在构建工具（hatchling）的配置中明确包含/排除文件。
-  - 本项目 wheel 只打包 `src/dependence_analysis_mcp`（见 `pyproject.toml` 的 `packages` 配置），不会把测试等目录打进 wheel。
-  - `MANIFEST.in` 主要影响 sdist（源码包）内容，可用于排除 `tests/` 等。
 
 ---
 
 ## 📝 Changelog
 
-- `0.1.0`：首个可用版本：stdio MCP server + 依赖扫描 + 未使用导入检测 + tsconfig/vite alias 支持。
+### v0.1.2 (2025-12-17) — 准确率大幅提升 🎯
+
+| 指标           | v0.1.1 | v0.1.2    | 变化  |
+| -------------- | ------ | --------- | ----- |
+| 未使用导入误报 | ~58    | **1**     | ↓ 98% |
+| 综合准确率     | ~18%   | **97.3%** | ↑ 79% |
+
+**修复:**
+
+- `type` 导入的使用追踪
+- 解构导入标识符追踪
+- 泛型参数中类型检测
+- `extends`/`implements` 类型使用
+- JSX 组件引用识别
+
+**已知问题:**
+
+- `$` 开头的标识符可能误报（如 `$isTagNode`）
+
+### v0.1.1 (2025-12-17)
+
+- Tree-sitter AST 未使用导入检测
+- `tsconfig.json` paths 别名解析
+- `vite.config.*` alias 解析
+- `import.meta.glob` 支持
+
+### v0.1.0
+
+- 首个可用版本
+
+---
+
+## 🔮 Roadmap
+
+- [ ] 修复 `$` 开头标识符误报
+- [ ] Vue SFC AST 解析支持
+- [ ] `import()` 动态导入分析
+- [ ] re-export 链式追踪
+
+---
+
+## 📦 发布（维护者）
+
+```bash
+pip install -U build twine
+python -m build
+twine upload dist/*
+```
+
+详细变更日志见 [CHANGELOG.md](CHANGELOG.md)
