@@ -16,9 +16,7 @@ from .scanner import scan_directory
 
 _mcp = FastMCP(
     "dependence-analysis-mcp",
-    # 生产部署更推荐无状态 + JSON 响应（更易扩展、更省资源）。
-    stateless_http=True,
-    json_response=True,
+    instructions="扫描前端/Node 项目的 ESModule 依赖关系，找出未引用文件和未使用导入。",
 )
 
 
@@ -60,24 +58,35 @@ app = create_app()
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="dependence-analysis-mcp",
-        description="Run dependence-analysis-mcp as an MCP Streamable HTTP server (endpoint: /mcp).",
+        description="Run dependence-analysis-mcp as an MCP server.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["stdio", "http"],
+        default=os.environ.get("MCP_MODE", "stdio"),
+        help="Server mode: stdio (default, for MCP clients) or http (for web deployment).",
     )
     parser.add_argument(
         "--host",
         default=os.environ.get("HOST", "0.0.0.0"),
-        help="Bind host (default: 0.0.0.0 or $HOST).",
+        help="Bind host for HTTP mode (default: 0.0.0.0 or $HOST).",
     )
     parser.add_argument(
         "--port",
         type=int,
         default=int(os.environ.get("PORT", "8000")),
-        help="Bind port (default: 8000 or $PORT).",
+        help="Bind port for HTTP mode (default: 8000 or $PORT).",
     )
     parser.add_argument(
         "--log-level",
         default=os.environ.get("LOG_LEVEL", "info"),
-        help="Uvicorn log level (default: info or $LOG_LEVEL).",
+        help="Log level (default: info or $LOG_LEVEL).",
     )
     args = parser.parse_args()
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+    if args.mode == "stdio":
+        # Stdio 模式：用于 MCP 客户端（如魔搭托管、Claude Desktop）
+        _mcp.run(transport="stdio")
+    else:
+        # HTTP 模式：用于 Web 部署
+        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)

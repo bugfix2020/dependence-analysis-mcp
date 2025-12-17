@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.2] - 2025-12-17
+## [0.1.1] - 2025-12-17
 
 ### 🎯 准确率大幅提升
 
@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.1] - 2025-12-17
+## [0.1.0] - 2025-12-17
 
 ### Added
 
@@ -82,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2025-12-01
+## [0.0.1] - 2025-12-01
 
 ### Added
 

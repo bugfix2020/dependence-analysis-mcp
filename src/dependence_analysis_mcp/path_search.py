@@ -195,4 +195,3 @@ def batch_verify_files(
         results[str(file_path)] = is_referenced
     
     return results
-
