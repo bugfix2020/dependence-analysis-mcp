@@ -1,6 +1,6 @@
 # dependence-analysis-mcp
 
-一个 MCP Server（Streamable HTTP）用于扫描前端/Node 项目的 ESModule 依赖关系，帮助你快速找出：
+一个 MCP Server(支持 stdio/HTTP 双模式)用于扫描前端/Node 项目的 ESModule 依赖关系,帮助你快速找出:
 
 - ✅ **已引用文件** — 被 import 且确实有使用，附带引用次数
 - 🧹 **未引用文件** — 存在于项目中但从未被其他文件引用
@@ -81,24 +81,27 @@ sequenceDiagram
 - 🧠 Tree-sitter AST 级未使用导入检测，大幅降低误判
 - 🔗 路径别名支持：`tsconfig.json` paths + `vite.config.*` alias
 - 🚫 智能忽略 `node_modules/dist/tests/...` 等目录
-- 📦 发布到 PyPI，可直接 `pip install`
 
 ---
 
 ## 📦 安装 & 快速开始
 
 ```bash
-# 安装
-pip install dependence-analysis-mcp
+# 克隆仓库
+git clone https://github.com/bugfix2020/dependence-analysis-mcp.git
+cd dependence-analysis-mcp
 
-# 启动服务（默认 0.0.0.0:8000）
+# 安装依赖
+pip install -e .
+
+# stdio 模式(默认,用于 MCP 客户端如 Claude Desktop)
 dependence-analysis-mcp
 
-# 或指定端口
-dependence-analysis-mcp --host 0.0.0.0 --port 8000
+# HTTP 模式(用于 Web 部署)
+dependence-analysis-mcp --mode http --host 0.0.0.0 --port 8000
 ```
 
-连接 MCP endpoint：`http://127.0.0.1:8000/mcp`
+连接 MCP endpoint(HTTP 模式):`http://127.0.0.1:8000/mcp`
 
 ---
 
@@ -171,7 +174,10 @@ docker run --rm -e PORT=8000 -p 8000:8000 dependence-analysis-mcp
 ## 🧪 开发 & 测试
 
 ```bash
+# 安装开发依赖
 pip install -e ".[dev]"
+
+# 运行测试
 pytest
 ```
 
@@ -192,9 +198,9 @@ dependence-analysis-mcp/
 
 ## 📝 Changelog
 
-### v0.1.2 (2025-12-17) — 准确率大幅提升 🎯
+### v0.0.3 (2025-12-17) — 准确率大幅提升 🎯
 
-| 指标           | v0.1.1 | v0.1.2    | 变化  |
+| 指标           | v0.0.2 | v0.0.3    | 变化  |
 | -------------- | ------ | --------- | ----- |
 | 未使用导入误报 | ~58    | **1**     | ↓ 98% |
 | 综合准确率     | ~18%   | **97.3%** | ↑ 79% |
@@ -211,14 +217,14 @@ dependence-analysis-mcp/
 
 - `$` 开头的标识符可能误报（如 `$isTagNode`）
 
-### v0.1.1 (2025-12-17)
+### v0.0.2 (2025-12-17)
 
 - Tree-sitter AST 未使用导入检测
 - `tsconfig.json` paths 别名解析
 - `vite.config.*` alias 解析
 - `import.meta.glob` 支持
 
-### v0.1.0
+### v0.0.1
 
 - 首个可用版本
 
@@ -232,13 +238,5 @@ dependence-analysis-mcp/
 - [ ] re-export 链式追踪
 
 ---
-
-## 📦 发布（维护者）
-
-```bash
-pip install -U build twine
-python -m build
-twine upload dist/*
-```
 
 详细变更日志见 [CHANGELOG.md](CHANGELOG.md)
